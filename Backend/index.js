@@ -30,12 +30,26 @@ io.on("connection", (socket) => {
 
     socket.on("Add_drink", (data) => {
         console.log("Received drink from client: " + JSON.stringify(data));
-        drinks.push(data);
+        let temp = {name: data.Name, halflife: data.halflife, grams: calculateAlcoholGrams(data.milliliters, data.percent), timeDrank: data.timeDrank}
+        drinks.push(temp);
 
         let drinkIterator = drinks.values();
         for(let drink of drinkIterator) {
             console.log("Drink: " + JSON.stringify(drink));
         }
+    });
+
+    socket.on("getBAC", () => {
+        let BAC = 0;
+        let drinkIterator = drinks.values();
+        for(let drink of drinkIterator) {
+            let timePassed = (new Date().getTime() - drink.timeDrank) / 1000 / 60 / 60;
+            let r = calculateWidmarkFactor(height/100, weight, age);
+            let A_ingested = drink.grams;
+            let W = weight;
+            BAC += (A_ingested * ((100 - (100/(2**(timePassed/drink.halflife))))/100)) / (r * W * 1000) * 100 - .015 * timePassed;
+        }
+        socket.emit("BAC", {BAC: BAC});
     });
 
 
@@ -47,5 +61,5 @@ function calculateWidmarkFactor(heightM, weightKG, age) {
 }
 
 function calculateAlcoholGrams(milliliters, percent) {
-    return (milliliters/1000) * percent * .789;
+    return (milliliters/1000) * (percent/100) * .789;
 }
